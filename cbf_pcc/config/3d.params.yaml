@@ -1,0 +1,31 @@
+/**:
+  ros__parameters:
+    grid_accuracy: [20, 20, 20]
+    x_limit: [-1.0, 1.0]
+    y_limit: [-1.0, 1.0]
+    z_limit: [-1.0, 1.0]
+
+agent0:
+  agent_body:
+    ros__parameters:
+      init_position: [0.5, 0.0, 0.5]
+
+agent1:
+  agent_body:
+    ros__parameters:
+      init_position: [0.0, 0.5, 0.3]
+
+agent2:
+  agent_body:
+    ros__parameters:
+      init_position: [-0.5, 0.5, 0.1]
+
+agent3:
+  agent_body:
+    ros__parameters:
+      init_position: [0.5, 0.0, -0.5]
+
+agent4:
+  agent_body:
+    ros__parameters:
+      init_position: [0.0, 0.5, -0.3]
