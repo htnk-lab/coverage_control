@@ -7,7 +7,7 @@
 agent0:
   agent_body:
     ros__parameters:
-      init_position: [-0.3, -0.5]
+      init_position: [-0.5, 0.5]
 
 agent1:
   agent_body:
@@ -17,15 +17,15 @@ agent1:
 agent2:
   agent_body:
     ros__parameters:
-      init_position: [-0.5, 0.5]
+      init_position: [0.5, -0.5]
 
 agent3:
   agent_body:
     ros__parameters:
-      init_position: [-0.5, -0.5]
+      init_position: [0.5, -0.3]
 
 agent4:
   agent_body:
     ros__parameters:
-      init_position: [0.5, -0.5]
+      init_position: [0.2, -0.3]
 

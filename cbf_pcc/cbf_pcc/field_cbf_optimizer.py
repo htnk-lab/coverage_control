@@ -14,26 +14,29 @@ from visualization_msgs.msg import Marker
 
 from .coverage_utils.utils import get_color_rgba
 
-
 class WallCBF(CBFBase):
     def __init__(self) -> None:
         self.x = Matrix(symbols("x, y", real=True))
         self.sign = Symbol("sign_", real=True)
         # 初期化
-        self.segment_p1 = np.zeros(2)
-        self.segment_p2 = np.zeros(2)
+        # self.segment_p1 = None
+        # self.segment_p2 = None
+        self.segment_p1 = Matrix(symbols("x1, y1", real=True))
+        self.segment_p2 = Matrix(symbols("x2, y2", real=True))
 
     def _alpha(self, h: List[float]) -> List[float]:
-        return [0.1*_h for _h in h]
+        return [300*(np.exp(_h)-1) for _h in h]
 
     def set_parameters(self, d: float, keep_inside: bool = True) -> None:
         self.d = d
         self.keep_inside = keep_inside
+        # self.segment_p1 = Matrix(symbols("x1, y1", real=True))
+        # self.segment_p2 = Matrix(symbols("x2, y2", real=True))
         # sign = 1 if keep_inside else -1
 
-        cbf = self.sign * (self.d**2 - self.distance_to_segment(self.x))
-        self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
-        self._calc_h = lambdify([self.x, self.sign], cbf)
+        cbf = self.sign * (self.distance_to_segment(self.x, self.segment_p1, self.segment_p2) - self.d**2)
+        self._calc_dhdx = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf.diff(self.x))
+        self._calc_h = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf)
 
     def get_parameters(self) -> Tuple[float, bool]:
         return self.d, self.keep_inside
@@ -41,34 +44,31 @@ class WallCBF(CBFBase):
     def calc_constraints(self, agent_position: np.ndarray, x_wall: np.ndarray, y_wall: np.ndarray) -> None:
         self.G = []
         self.h = []
+        
         for i in range(len(x_wall)-1):
-        # for i in range(2):
+        # i = 1
             p1 = np.array([x_wall[i], y_wall[i]])
             p2 = np.array([x_wall[i + 1], y_wall[i + 1]])
 
-            # エージェントの位置が線分の内側にあるか
+            # エージェントの位置が線分の内側にあるか確認
             if self.inside_segment(agent_position, p1, p2):
                 agent_position = agent_position.flatten()
-
                 sign = 1 if self.keep_inside else -1
 
-                G_segment = self._calc_dhdx(agent_position, sign).flatten()
-                h_segment = self._calc_h(agent_position, sign)
+                G_segment = self._calc_dhdx(agent_position, sign, p1, p2).flatten()
+                h_segment = self._calc_h(agent_position, sign, p1, p2)
 
                 self.G.append(G_segment)
                 self.h.append(h_segment)
-        
-        # print(self.G)
-        # print(self.h)
+
+
         if len(self.G) == 0:
             self.G = [np.zeros((2,))]
             self.h = [np.ones((1,))]
 
-
-
-    def distance_to_segment(self, point: Matrix) -> Symbol:
-        x1, y1 = self.segment_p1
-        x2, y2 = self.segment_p2
+    def distance_to_segment(self, point: Matrix, p1: np.ndarray, p2: np.ndarray) -> Symbol:
+        x1, y1 = p1
+        x2, y2 = p2
         px, py = point
         dx = x2 - x1
         dy = y2 - y1
@@ -77,10 +77,6 @@ class WallCBF(CBFBase):
         c = -x2*y1 + y2*x1
         d = dx**2 + dy**2
         distance = (a*px + b*py + c)**2 / d
-        # u = ((px - x1) * dx + (py - y1) * dy) / d
-        # closest_point = Matrix([x1 + u * dx, y1 + u * dy])
-        # distance = (closest_point - point).norm()
-        # print(distance)
         return distance
 
     def inside_segment(self, agent_position: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> bool:
@@ -92,6 +88,7 @@ class WallCBF(CBFBase):
         if inner_product >= length:
             return False  # 線分の外側にある
         return True  # 線分の内側にある
+
 
 
 class CBFOptimizer:
@@ -195,7 +192,7 @@ class FieldCBFOptimizer(Node):
 
         # optimize
         if self.activate_cbf:
-            self.optimizer.set_parameters(d=0.1, keep_inside=self.keep_inside)
+            self.optimizer.set_parameters(d=0.005, keep_inside=self.keep_inside)
             agent_position = np.array([self.curr_pose.position.x, self.curr_pose.position.y])
             nominal_input = np.array([msg.linear.x, msg.linear.y])
             # nominal_input = np.array([0.0, 0.0])
@@ -204,12 +201,10 @@ class FieldCBFOptimizer(Node):
             _, optimal_input = self.optimizer.optimize(nominal_input, agent_position, self.x_wall, self.y_wall)
             # self.get_logger().info(f"{self.optimizer.wall_cbf.h}")
             # self.get_logger().info(f"{self.optimizer.wall_cbf.get_constraints()}")
-            self.get_logger().info(f"p1:{self.optimizer.wall_cbf.segment_p1}")
-            self.get_logger().info(f"p2:{self.optimizer.wall_cbf.segment_p2}")
-            G,alpha_h=self.optimizer.wall_cbf.get_constraints()
-            if isinstance(G,list):
-                G=np.array(G)
-                alpha_h=np.array(alpha_h)
+            # G,alpha_h=self.optimizer.wall_cbf.get_constraints()
+            # if isinstance(G,list):
+            #     G=np.array(G)
+            #     alpha_h=np.array(alpha_h)
                 # self.get_logger().info(f":{G@optimal_input}")
                 # self.get_logger().info(f"h:{-alpha_h}")
 
@@ -217,6 +212,7 @@ class FieldCBFOptimizer(Node):
             # self.optimizer.optimize(nominal_input, agent_position, self.x_wall, self.y_wall)
             # cmd_vel_opt.linear = Vector3(x=float(nominal_input[0]), y=float(nominal_input[1]))
             cmd_vel_opt.linear = Vector3(x=float(optimal_input[0]), y=float(optimal_input[1]))
+            # self.get_logger().info(f"{cmd_vel_opt.linear}")
 
         self.cmd_vel_opt_pub.publish(cmd_vel_opt)
 
