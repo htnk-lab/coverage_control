@@ -29,6 +29,7 @@ def launch_setup(context: LaunchContext) -> List[GroupAction]:
             Node(
                 package="cbf_pcc",
                 executable="field_cbf_optimizer",
+                output="screen",
             ),
             Node(
                 package="cbf_pcc",
