@@ -34,9 +34,13 @@ class WallCBF(CBFBase):
         # self.segment_p2 = Matrix(symbols("x2, y2", real=True))
         # sign = 1 if keep_inside else -1
 
-        cbf = self.sign * (self.distance_to_segment(self.x, self.segment_p1, self.segment_p2) - self.d**2)
-        self._calc_dhdx = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf.diff(self.x))
-        self._calc_h = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf)
+        cbf_segment = self.sign * (self.distance_to_segment(self.x, self.segment_p1, self.segment_p2) - self.d**2)
+        self._calc_dhdx_segment = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf_segment.diff(self.x))
+        self._calc_h_segment = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf_segment)
+
+        # cbf_end1 = self.sign * (self.distance_to_end(self.x, self.segment_p1, self.segment_p2)[0] - self.d**2)
+        # self._calc_dhdx_end1 = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf_end1.diff(self.x))
+        # self._calc_h_end1 = lambdify([self.x, self.sign, self.segment_p1, self.segment_p2], cbf_end1)
 
     def get_parameters(self) -> Tuple[float, bool]:
         return self.d, self.keep_inside
@@ -55,12 +59,35 @@ class WallCBF(CBFBase):
                 agent_position = agent_position.flatten()
                 sign = 1 if self.keep_inside else -1
 
-                G_segment = self._calc_dhdx(agent_position, sign, p1, p2).flatten()
-                h_segment = self._calc_h(agent_position, sign, p1, p2)
+                G_segment = self._calc_dhdx_segment(agent_position, sign, p1, p2).flatten()
+                h_segment = self._calc_h_segment(agent_position, sign, p1, p2)
 
                 self.G.append(G_segment)
                 self.h.append(h_segment)
 
+            # else:
+            #     agent_position = agent_position.flatten()
+            #     sign = 1 if self.keep_inside else -1
+
+            #     G_end = self._calc_dhdx_end(agent_position, sign, p1, p2).flatten()
+            #     h_end = self._calc_h_end(agent_position, sign, p1, p2)
+
+            #     self.G.append(G_end)
+            #     self.h.append(h_end)
+
+        
+        sort_h = sorted(self.h)
+        sort_index_h = sorted(range(len(self.h)), key=lambda k: self.h[k])
+
+        # 制約を持つ線分の数を選択
+        number_constrainted_segment = 2
+
+        self.h = sort_h[0:number_constrainted_segment]
+        sort_index = sort_index_h[0:number_constrainted_segment]
+        self.G = [self.G[i] for i in sort_index]
+
+        print(self.G)
+        print(self.h)
 
         if len(self.G) == 0:
             self.G = [np.zeros((2,))]
@@ -78,7 +105,15 @@ class WallCBF(CBFBase):
         d = dx**2 + dy**2
         distance = (a*px + b*py + c)**2 / d
         return distance
-
+    
+    def distance_to_end(self, point: Matrix, p1: np.ndarray, p2: np.ndarray) -> Symbol:
+        x1, y1 = p1
+        x2, y2 = p2
+        px, py = point        
+        distance_1 = (px - x1)**2 + (py - y1)**2
+        distance_2 = (px - x2)**2 + (py - y2)**2
+        return distance_1, distance_2
+    
     def inside_segment(self, agent_position: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> bool:
         inner_product = (agent_position[0] - p1[0]) * (p2[0] - p1[0]) + (agent_position[1] - p1[1]) * (p2[1] - p1[1])
         if inner_product < 0:
@@ -192,7 +227,7 @@ class FieldCBFOptimizer(Node):
 
         # optimize
         if self.activate_cbf:
-            self.optimizer.set_parameters(d=0.005, keep_inside=self.keep_inside)
+            self.optimizer.set_parameters(d=0.001, keep_inside=self.keep_inside)
             agent_position = np.array([self.curr_pose.position.x, self.curr_pose.position.y])
             nominal_input = np.array([msg.linear.x, msg.linear.y])
             # nominal_input = np.array([0.0, 0.0])
