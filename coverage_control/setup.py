@@ -33,6 +33,7 @@ setup(
             "phi_marker_visualizer = coverage_control.phi_marker_visualizer:main",
             "phi_pointcloud_visualizer = coverage_control.phi_pointcloud_visualizer:main",
             "pose_collector = coverage_control.pose_collector:main",
+            "vel_collector = coverage_control.vel_collector:main",
             "sensing_region_marker_visualizer = coverage_control.sensing_region_marker_visualizer:main",
             "sensing_region_pointcloud_visualizer = coverage_control.sensing_region_pointcloud_visualizer:main",
         ],
