@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import List
 
@@ -14,7 +14,7 @@ from std_msgs.msg import Header
 
 @dataclass
 class Data:
-    curr_pose: Pose = Pose()
+    curr_pose: Pose = field(default_factory=Pose)
     is_ready: bool = False
 
 
@@ -25,10 +25,16 @@ class PoseCollector(Node):
         super().__init__("pose_collector")
 
         # declare parameter
-        self.declare_parameter("world_frame", "world", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING))
-        self.declare_parameter("agent_num", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER))
-        self.declare_parameter("agent_prefix", "agent", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING))
-        self.declare_parameter("timer_period", 0.1, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE))
+        self.declare_parameter(
+            "world_frame", "world", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING)
+        )
+        self.declare_parameter("agent_num", 1, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER))
+        self.declare_parameter(
+            "agent_prefix", "agent", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING)
+        )
+        self.declare_parameter(
+            "timer_period", 0.1, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE)
+        )
 
         self.world_frame = str(self.get_parameter("world_frame").value)
         agent_num = int(self.get_parameter("agent_num").value)

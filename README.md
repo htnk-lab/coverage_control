@@ -1,9 +1,9 @@
 # coverage_control
 
 ## Requirements
-- Ubuntu22.04
-- ROS2 Humble
-- Python3.10
+- Ubuntu24.04
+- ROS2 Jazzy
+- Python3.12
 
 ## Installation
 ```sh
@@ -16,6 +16,7 @@ rosdep install -i -y --from-paths .
 sudo python -m pip install -r requirements/tools.txt
 ```
 
+For python3.12, add “--break-system-packages” as a suffix to pip install.
 
 ## Usage
 ### simple coverage control

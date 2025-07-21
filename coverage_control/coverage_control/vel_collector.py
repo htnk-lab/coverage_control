@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import List
 
@@ -14,7 +14,7 @@ from std_msgs.msg import Float32MultiArray, MultiArrayDimension
 
 @dataclass
 class Data:
-    curr_vel: Float32MultiArray = Float32MultiArray()
+    curr_vel: Float32MultiArray = field(default_factory=Float32MultiArray)
     is_ready: bool = False
 
 
@@ -28,7 +28,7 @@ class VelCollector(Node):
         self.declare_parameter(
             "world_frame", "world", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING)
         )
-        self.declare_parameter("agent_num", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER))
+        self.declare_parameter("agent_num", 1, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER))
         self.declare_parameter(
             "agent_prefix", "agent", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING)
         )

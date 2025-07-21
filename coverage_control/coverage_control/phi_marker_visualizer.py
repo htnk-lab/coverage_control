@@ -36,7 +36,7 @@ class PhiMarkerVisualizer(Node):
             "world_frame", "world", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_STRING)
         )
         self.declare_parameter(
-            "grid_accuracy", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
+            "grid_accuracy", [10, 10], descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
         )
         self.declare_parameter(
             "x_limit", [-1.0, 1.0], descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE_ARRAY)

@@ -29,7 +29,7 @@ class Central(Node):
 
         # declare parameter
         self.declare_parameter(
-            "grid_accuracy", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
+            "grid_accuracy", [10, 10], descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
         )
         self.declare_parameter(
             "x_limit", [-1.0, 1.0], descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE_ARRAY)

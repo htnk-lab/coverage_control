@@ -20,6 +20,7 @@ class AgentBody(Node):
         # declare parameter
         self.declare_parameter(
             "init_position",
+            [0.0, 0.0, 0.0],
             descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE_ARRAY),
         )
         self.declare_parameter("init_yaw", 0.0, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE))

@@ -1,16 +1,15 @@
 import os
 from glob import glob
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 package_name = "coverage_control"
-coverage_utils = package_name + "/coverage_utils"
 
 
 setup(
     name=package_name,
     version="0.0.0",
-    packages=[package_name, coverage_utils],
+    packages=find_packages(include=[package_name, package_name + ".*"], exclude=["test"]),
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
@@ -24,7 +23,9 @@ setup(
     maintainer_email="toshiyuki67026@gmail.com",
     description="Package for experiencing coverage control",
     license="Apache License2.0",
-    tests_require=["pytest"],
+    extras_require={
+        "test": ["pytest"],
+    },
     entry_points={
         "console_scripts": [
             "agent_body = coverage_control.agent_body:main",

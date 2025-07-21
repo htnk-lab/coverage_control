@@ -23,9 +23,9 @@ class Controller(Node):
         super().__init__("controller")
 
         # declare parameter
-        self.declare_parameter("agent_id", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER))
+        self.declare_parameter("agent_id", 0, descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER))
         self.declare_parameter(
-            "grid_accuracy", descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
+            "grid_accuracy", [10, 10], descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_INTEGER_ARRAY)
         )
         self.declare_parameter(
             "x_limit", [-1.0, 1.0], descriptor=ParameterDescriptor(type=ParameterType.PARAMETER_DOUBLE_ARRAY)
