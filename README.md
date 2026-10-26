@@ -63,6 +63,98 @@ ros2 launch coverage_control pcc.launch dim:={1,2,3} agent_num:={1,2,3,4,5}
 
 ### toy problem: Satellite-USV 環境低減制御
 
+#### 一次CBFデモ
+
+粗セル4個、各粗セルあたり細セル16個、合計64細セルを使う最小版です。CBFで決めるのは全ロボットの介入強度ベクトル `u` だけです。ロボットは各粗セルに1台ずつ固定割当し、割り当て粗セル内の細セルだけを動きます。これはCBF制約ではなく、粗セル外へ出る運動を制御対象のシステムに含めない、という扱いです。
+
+モデルと結果の短いレポートは [examples/satellite_usv/CBF_REPORT.md](examples/satellite_usv/CBF_REPORT.md) にあります。
+
+```tex
+y_k=(Ax)_k
+```
+
+```tex
+\dot{x}
+=
+f(x)-\beta\operatorname{diag}(x)\kappa(p)u
+```
+
+```tex
+b_k
+=
+\varepsilon^2-\left(y_k-\bar{y}_k\right)^2
+```
+
+```tex
+\dot{b}_k+\gamma b_k\ge-\delta_k
+```
+
+上の条件は `u` に関する線形不等式になるため、実装では全ロボット入力をまとめたスラック付きQPを解いています。ノミナル入力は0で、CBF条件を満たすために必要な最小介入強度を見る設定です。
+
+```sh
+cd ~/ros2_ws/src/coverage_control
+python3 examples/satellite_usv/run_cbf_demo.py --steps 80 --output-dir satellite_usv_cbf_demo
+```
+
+主な出力:
+
+- `cbf_evolution.gif`: `x`、粗出力 `y_k=A x`、上位参照 `\bar{y}_k`、desired `y^{\mathrm{des}}`、局所除去場、barrier `b_k`
+- `cbf_fields.png`: 最終時刻の場
+- `cbf_metrics.png`: `max_i |e_i|`、CBF barrier、連続CBF残差、スラック、Euler離散残差、各入力
+
+#### HOCBFデモ
+
+一次CBFの次の最小版です。ロボット位置 `p_i` と介入強度 `u_i` を状態にし、速度 `v_i` と介入変化率 `\nu_i` をHOCBF-QPで決めます。環境モデルはまだ1変数ですが、局所的な供給がある状況を見るため、拡散・減衰に小さい固定発生項を加えています。移動発生項は `--source-mode moving` のstress testとして分けています。
+
+```tex
+\dot x
+=
+D\nabla^2x-\lambda x
++
+q(t)
+-
+\beta\operatorname{diag}(x)\kappa(p)u
+```
+
+```tex
+\dot p_i=v_i,
+\qquad
+\dot u_i=\nu_i
+```
+
+上側barrier
+
+```tex
+b_k=\bar y_k+\varepsilon_k-y_k
+```
+
+に対してHOCBF条件を課します。位置制約と介入強度上下限制約も同じQPに一次CBFとして入れています。位置制約は各辺ごとのbox制約ではなく、各ロボット1本の6次ノルム型バリアです。名目速度は担当粗セル内の介入効率が高い位置へ向け、介入強度を上げっぱなしにしないため `\nu_i^{\mathrm{nom}}=-k_u u_i` を入れています。標準設定の発生項 `q_j^k` は固定された局所sourceで、移動sourceは `--source-mode moving` のstress testとして分けています。
+
+```tex
+h_{p,i}
+=
+1
+-
+\left|
+\frac{p_{i,x}-c_{i,x}}{d_{i,x}}
+\right|^6
+-
+\left|
+\frac{p_{i,y}-c_{i,y}}{d_{i,y}}
+\right|^6,
+\qquad
+\nabla h_{p,i}^{\mathsf T}v_i+k_ph_{p,i}\ge0
+```
+
+```sh
+cd ~/ros2_ws/src/coverage_control
+python3 examples/satellite_usv/run_hocbf_demo.py --steps 240 --output-dir satellite_usv_hocbf_demo
+```
+
+モデルと結果の短いレポートは [examples/satellite_usv/HOCBF_REPORT.md](examples/satellite_usv/HOCBF_REPORT.md) にあります。
+
+#### ヒューリスティック制御デモ
+
 簡単化・改変したモデルで実装を試行します。詳細分布 `x_k` の平均化で得られる粗マップ `y_k = A x_k` を、固定の目標粗マップ `\bar{y}` に近づけます。
 
 ただし、「初期分布をただ下げればよい」という意味ではありません。デフォルトでは、初期場は右半分が広く高い分布、上位targetは右上だけを相対的に高く残す分布にしています。見たいのは、上層が作る粗い目標出力 `\bar{y}` に対して、局所的にしか作用できないUSVが `y_k = A x_k` をどれだけ近づけられるかです。
@@ -133,15 +225,15 @@ python3 examples/satellite_usv/run_control_demo.py --steps 400 --usv-count 3 --m
 
 スライド方針との比較:
 
-| 観点・要素 | メイン方針 | デモ |
-| --- | --- | --- |
-| 上位目標 | MPC等でplannerから出力 | 固定の粗マップ |
-| 環境モデル | NPZ、移流、etc. | 1変数、拡散 + 制御減少 |
-| 制御入力 | ガウス関数などで低減 | USVが選んだ格子点で下げる |
-| USV運動 | 連続制御 | 上下左右のみ |
-| 最適化 | MPC、CLF/CBF | N/A、ヒューリスティック |
-| 複数USV | 協調最適化 | 3台を貪欲に順番決定 |
-| 評価指標 | `\|A x-\bar{y}\|`, `\sum_i x_i`, `\max_i x_i` | `control_metrics.png` に保存 |
+| 観点・要素 | メイン方針 | 一次CBFデモ | HOCBFデモ | ヒューリスティックデモ |
+| --- | --- | --- | --- | --- |
+| 上位目標 | MPC等でplannerから出力 | 滑らかな粗参照 | 滑らかな粗参照 | 固定の粗マップ |
+| 環境モデル | NPZ、移流、etc. | 1変数、拡散 + 乗算型低減 | 1変数、拡散 + 乗算型低減 | 1変数、拡散 + 制御減少 |
+| 制御入力 | ガウス関数などで低減 | 結合CBF-QPで `u_i` を決定 | HOCBF-QPで `v_i,\nu_i` を決定 | USVが選んだ格子点で下げる |
+| USV運動 | 連続制御 | 粗セル内に限定した外部更新 | 連続位置 `\dot p=v` | 上下左右のみ |
+| 最適化 | MPC、CLF/CBF | 一次CBF-QP | HOCBF-QP | N/A、ヒューリスティック |
+| 複数USV | 協調最適化 | 4台、各粗セルに1台固定 | 4台、各粗セルに1台固定 | 3台を貪欲に順番決定 |
+| 評価指標 | `A x-\bar{y}`, CBF条件, 入力 | `cbf_metrics.png` | `hocbf_metrics.png` | `control_metrics.png` |
 
 v2では、固定targetを直接追うのではなく、desired mapから毎stepの実現可能target `\bar{y}_{k+1}` を作る方針です。また、点制御を近傍/ガウスカーネルへ拡張します。
 

@@ -9,7 +9,7 @@ from std_msgs.msg import ColorRGBA, MultiArrayDimension
 
 # 各種描画に使う色を定義
 # list(mcolors.TABELAU_COLORS.values())も使用可能
-color_list = ["r", "g", "b", "m", "c", "y"]
+color_list = ["r", "b", "g", "m", "c", "y"]
 
 
 def padding(

@@ -1,5 +1,6 @@
 import numpy as np
 
+from satellite_usv.cbf_control import CBFConfig, build_cbf_truth, run_cbf_simulation
 from satellite_usv.control import (
     ControlConfig,
     build_control_truth,
@@ -7,6 +8,7 @@ from satellite_usv.control import (
     run_control_comparison,
     run_control_simulation,
 )
+from satellite_usv.hocbf_control import HOCBFConfig, run_hocbf_simulation
 from satellite_usv.model import (
     GridSpec,
     SimulationConfig,
@@ -137,3 +139,77 @@ def test_control_comparison_uses_expected_modes():
     assert set(histories) == {"no_control", "random_control", "greedy_fine", "hierarchical"}
     assert histories["no_control"].control_cost[-1] == 0.0
     assert histories["hierarchical"].control_cost[-1] > 0.0
+
+
+def test_cbf_demo_uses_four_coarse_cells_and_sixteen_fine_cells_per_coarse():
+    grid = GridSpec(coarse_shape=(2, 2), fine_per_coarse=(4, 4))
+    truth = build_cbf_truth(grid)
+    history = run_cbf_simulation(CBFConfig(steps=3), grid, truth)
+
+    assert grid.coarse_count == 4
+    assert grid.cells_per_coarse == 16
+    assert grid.fine_count == 64
+    assert len(history.assigned_coarse) == 4
+    assert len(history.truth) == 4
+    assert history.truth[-1].shape == (8, 8)
+    assert history.cbf_input[-1].shape == (2, 2)
+
+
+def test_cbf_robots_stay_inside_assigned_coarse_cells():
+    grid = GridSpec(coarse_shape=(2, 2), fine_per_coarse=(4, 4))
+    history = run_cbf_simulation(CBFConfig(steps=12), grid)
+
+    for positions in history.usv_positions:
+        for position, coarse_index in zip(positions, history.assigned_coarse):
+            assert grid.coarse_index_for_position(position) == coarse_index
+
+
+def test_first_order_cbf_constraint_is_respected_with_default_settings():
+    history = run_cbf_simulation(CBFConfig(steps=20))
+
+    assert all(np.min(margin + slack) >= -1e-8 for margin, slack in zip(history.cbf_margin, history.slack))
+    assert max(float(np.max(slack)) for slack in history.slack) < 1e-2
+    assert max(history.max_abs_error) < history.cbf_epsilon + 1e-2
+    assert history.desired_error[-1] < history.desired_error[0]
+    assert history.total_concentration[-1] < history.total_concentration[0]
+
+
+def test_hocbf_demo_keeps_continuous_positions_inside_assigned_coarse_cells():
+    grid = GridSpec(coarse_shape=(2, 2), fine_per_coarse=(4, 4))
+    history = run_hocbf_simulation(HOCBFConfig(steps=20), grid)
+
+    assert grid.coarse_count == 4
+    assert grid.cells_per_coarse == 16
+    assert history.truth[-1].shape == (8, 8)
+    assert len(history.source) == 21
+    assert np.allclose(history.source[0], history.source[-1])
+    assert len(history.assigned_coarse) == 4
+    assert min(history.position_barrier) >= -1e-8
+    for positions in history.positions:
+        for position, coarse_index in zip(positions, history.assigned_coarse):
+            row_slice, col_slice = next(block for index, block in grid.iter_coarse_blocks() if index == coarse_index)
+            assert row_slice.start - 1e-8 <= position[0] <= row_slice.stop - 1 + 1e-8
+            assert col_slice.start - 1e-8 <= position[1] <= col_slice.stop - 1 + 1e-8
+
+
+def test_hocbf_moving_source_mode_changes_source_field():
+    grid = GridSpec(coarse_shape=(2, 2), fine_per_coarse=(4, 4))
+    history = run_hocbf_simulation(HOCBFConfig(steps=20, source_mode="moving"), grid)
+
+    assert len(history.source) == 21
+    assert not np.allclose(history.source[0], history.source[-1])
+    assert min(history.position_barrier) >= -1e-8
+
+
+def test_hocbf_qp_respects_relaxed_barrier_and_input_bounds():
+    history = run_hocbf_simulation(HOCBFConfig(steps=30))
+    min_relaxed_residual = min(
+        float((residual + slack).min())
+        for residual, slack in zip(history.hocbf_residual, history.slack)
+    )
+
+    assert min_relaxed_residual >= -1e-7
+    assert min(float(barrier.min()) for barrier in history.barrier) >= -1e-5
+    assert min(history.action_margin) >= -1e-8
+    assert max(float(np.max(actions)) for actions in history.actions) <= history.control_limit + 1e-8
+    assert max(history.max_upper_error) <= history.hocbf_epsilon + 1e-3
