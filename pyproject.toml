@@ -7,7 +7,7 @@ skip_gitignore = true
 
 [tool.black]
 line-length = 119
-target-version = ['py310']
+target-version = ['py312']
 include = '\.pyi?$'
 # automatically ignore files in .gitignore
 exclude = '''
@@ -23,8 +23,6 @@ exclude = '''
 
 [tool.ruff]
 line-length = 119
-select = ["E", "F"]
-ignore = ["E402", "E722", "F841"]
 # automatically ignore files in .gitignore
 exclude = [
     ".git",
@@ -35,14 +33,17 @@ exclude = [
     "rviz",
 ]
 
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E402", "E722", "F841"]
+
 [tool.mypy]
-python_version = 3.10
-plugins = "numpy.typing.mypy_plugin"
+python_version = "3.14"
 strict = true
 ignore_missing_imports = true
 disallow_any_generics = false
 
 [tool.taskipy.tasks]
 fmt = "isort . && black ."
-lint = "black --check . && ruff ."
+lint = "black --check . && ruff check ."
 mypy = "mypy ."

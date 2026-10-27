@@ -5,6 +5,7 @@ import traceback
 import rclpy
 from geometry_msgs.msg import Point, Pose, Quaternion, Transform, TransformStamped, Twist, Vector3
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Header
 from tf2_ros.transform_broadcaster import TransformBroadcaster
@@ -104,11 +105,15 @@ def main() -> None:
 
     try:
         rclpy.spin(agent_body)
-    except:
-        agent_body.get_logger().error(traceback.format_exc())
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        # errors after an external shutdown (Ctrl+C, SIGTERM) are not worth reporting
+        if rclpy.ok():
+            agent_body.get_logger().error(traceback.format_exc())
     finally:
         agent_body.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

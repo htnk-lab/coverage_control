@@ -70,9 +70,9 @@ def launch_setup(context: LaunchContext) -> List[Union[Node, GroupAction, Launch
 
 
 def generate_launch_description() -> LaunchDescription:
-    DeclareLaunchArgument("dim", description="\in {1, 2, 3}")
+    DeclareLaunchArgument("dim", description=r"\in {1, 2, 3}")
     DeclareLaunchArgument("num", description="< 6")
-    DeclareLaunchArgument("phi", description="\in {1, 2, 3}")
+    DeclareLaunchArgument("phi", description=r"\in {1, 2, 3}")
 
     # Create the launch description and populate
     ld = LaunchDescription()

@@ -7,6 +7,7 @@ import numpy as np
 import rclpy
 from numpy.typing import NDArray
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Float32MultiArray, Header
@@ -131,11 +132,15 @@ def main() -> None:
 
     try:
         rclpy.spin(phi_pointcloud_visualizer)
-    except:
-        phi_pointcloud_visualizer.get_logger().error(traceback.format_exc())
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        # errors after an external shutdown (Ctrl+C, SIGTERM) are not worth reporting
+        if rclpy.ok():
+            phi_pointcloud_visualizer.get_logger().error(traceback.format_exc())
     finally:
         phi_pointcloud_visualizer.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from typing import List
 import rclpy
 from geometry_msgs.msg import Pose, PoseArray
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Header
 
@@ -75,7 +76,7 @@ class PoseCollector(Node):
             )
         else:
             if len([data.is_ready for data in self.data_list if not data.is_ready]) == 0:
-                self.get_logger().warn("pose_collector is ready")
+                self.get_logger().warning("pose_collector is ready")
                 self.is_ready = True
 
 
@@ -85,11 +86,15 @@ def main() -> None:
 
     try:
         rclpy.spin(pose_collector)
-    except:
-        pose_collector.get_logger().error(traceback.format_exc())
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        # errors after an external shutdown (Ctrl+C, SIGTERM) are not worth reporting
+        if rclpy.ok():
+            pose_collector.get_logger().error(traceback.format_exc())
     finally:
         pose_collector.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

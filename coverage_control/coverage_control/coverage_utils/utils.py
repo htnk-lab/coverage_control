@@ -63,7 +63,7 @@ def multiarray_to_ndarray(pytype: Any, dtype: Any, multiarray: MultiArray) -> ND
 
 
 def smooth_ramp(x: Union[float, NDArray]) -> NDArray:
-    """連続なランプ関数
+    r"""連続なランプ関数
 
     Note:
         f(x) = \exp{-SR(x^2-R^2)^2}で山が平らに潰れた凹型の関数が得られる

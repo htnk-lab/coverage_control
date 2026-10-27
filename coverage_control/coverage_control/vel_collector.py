@@ -8,6 +8,7 @@ from typing import List
 import rclpy
 from geometry_msgs.msg import Twist
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension
 
@@ -78,7 +79,7 @@ class VelCollector(Node):
             self.curr_vel_array_pub.publish(curr_vel_multiarray)
         else:
             if len([data.is_ready for data in self.data_list if not data.is_ready]) == 0:
-                self.get_logger().warn("vel_collector is ready")
+                self.get_logger().warning("vel_collector is ready")
                 self.is_ready = True
 
 
@@ -88,11 +89,15 @@ def main() -> None:
 
     try:
         rclpy.spin(vel_collector)
-    except:
-        vel_collector.get_logger().error(traceback.format_exc())
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        # errors after an external shutdown (Ctrl+C, SIGTERM) are not worth reporting
+        if rclpy.ok():
+            vel_collector.get_logger().error(traceback.format_exc())
     finally:
         vel_collector.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import rclpy
 from geometry_msgs.msg import Point, Pose, PoseArray, Twist, Vector3
 from numpy.typing import NDArray
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray, Int8MultiArray
 
@@ -147,11 +148,15 @@ def main() -> None:
 
     try:
         rclpy.spin(controller)
-    except:
-        controller.get_logger().error(traceback.format_exc())
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        # errors after an external shutdown (Ctrl+C, SIGTERM) are not worth reporting
+        if rclpy.ok():
+            controller.get_logger().error(traceback.format_exc())
     finally:
         controller.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

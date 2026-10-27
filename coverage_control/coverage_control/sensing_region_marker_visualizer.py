@@ -6,6 +6,7 @@ import numpy as np
 import rclpy
 from geometry_msgs.msg import Point, Vector3
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Header, Int8MultiArray
 from visualization_msgs.msg import Marker
@@ -122,11 +123,15 @@ def main() -> None:
 
     try:
         rclpy.spin(sensing_region_marker_visualizer)
-    except:
-        sensing_region_marker_visualizer.get_logger().error(traceback.format_exc())
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        # errors after an external shutdown (Ctrl+C, SIGTERM) are not worth reporting
+        if rclpy.ok():
+            sensing_region_marker_visualizer.get_logger().error(traceback.format_exc())
     finally:
         sensing_region_marker_visualizer.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

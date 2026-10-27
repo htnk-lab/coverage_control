@@ -6,6 +6,7 @@ from enum import IntEnum
 import numpy as np
 import rclpy
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray
 
@@ -97,11 +98,15 @@ def main() -> None:
 
     try:
         rclpy.spin(central)
-    except:
-        central.get_logger().error(traceback.format_exc())
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except Exception:
+        # errors after an external shutdown (Ctrl+C, SIGTERM) are not worth reporting
+        if rclpy.ok():
+            central.get_logger().error(traceback.format_exc())
     finally:
         central.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":
